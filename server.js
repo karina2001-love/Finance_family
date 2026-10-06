@@ -10,7 +10,7 @@ try {
   }
 } catch {}
 
-const routes = { '/api/login': require('./api/login'), '/api/logout': require('./api/logout'), '/api/data': require('./api/data'), '/api/advice': require('./api/advice'), '/api/rate': require('./api/rate') };
+const routes = { '/api/login': require('./api/login'), '/api/logout': require('./api/logout'), '/api/data': require('./api/data'), '/api/advice': require('./api/advice'), '/api/rate': require('./api/rate'), '/api/health': require('./api/health') };
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
 
 http.createServer(async (req, res) => {

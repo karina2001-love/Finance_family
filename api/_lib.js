@@ -56,8 +56,11 @@ function send(res, status, obj, headers = {}) {
 
 // ---- хранилище ----
 const KEY = 'family-finance-v1';
-const REST_URL = () => process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const REST_TOKEN = () => process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+// Подхватываем переменные Upstash/KV с любым префиксом (KV_, STORAGE_, UPSTASH_...)
+const envPick = (re, exclude) => { const k = Object.keys(process.env).find((k) => re.test(k) && !(exclude && exclude.test(k))); return k ? process.env[k] : undefined; };
+const REST_URL = () => process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || envPick(/(REST_API_URL|REDIS_REST_URL)$/);
+const REST_TOKEN = () => process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || envPick(/(REST_API_TOKEN|REDIS_REST_TOKEN)$/, /READ_ONLY/);
+const storageKind = () => (REST_URL() && REST_TOKEN() ? 'redis' : 'file');
 const FILE = path.join(__dirname, '..', 'data', 'db.json');
 
 async function redis(cmd) {
@@ -84,4 +87,4 @@ async function saveData(data) {
   fs.writeFileSync(FILE, JSON.stringify(data));
 }
 
-module.exports = { isAuthed, makeToken, cookieHeader, checkPassword, readBody, send, loadData, saveData, MAX_AGE };
+module.exports = { storageKind, isAuthed, makeToken, cookieHeader, checkPassword, readBody, send, loadData, saveData, MAX_AGE };
