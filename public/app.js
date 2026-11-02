@@ -68,11 +68,13 @@ const toUsd = (amt, ccy, e) => (ccy === 'USD' ? num(amt) : ccy === 'EUR' ? (num(
 function calcEntry(e) {
   const rate = rateOf(e);
   const have = sum(e.haves, (x) => toUsd(x.amount, x.ccy, e));
-  const inc = sum(e.incomes, (x) => toUsd(x.amount, x.ccy, e));
+  const incPlan = sum(e.incomes, (x) => toUsd(x.amount, x.ccy, e));
+  const inc = sum(e.incomes, (x) => toUsd(hasV(x.fact) ? x.fact : x.amount, x.ccy, e));
+  const anyIncFact = e.incomes.some((x) => hasV(x.fact));
   const expPlan = sum(e.expenses, (x) => toUsd(x.amount, x.ccy, e));
   const expUsd = sum(e.expenses, (x) => toUsd(hasV(x.fact) ? x.fact : x.amount, x.ccy, e));
   const anyFact = e.expenses.some((x) => hasV(x.fact));
-  return { rate, have, inc, expPlan, expUsd, expKzt: expUsd * rate, expPlanKzt: expPlan * rate, anyFact, after: have + inc - expUsd };
+  return { rate, have, inc, incPlan, anyIncFact, expPlan, expUsd, expKzt: expUsd * rate, expPlanKzt: expPlan * rate, anyFact, after: have + inc - expUsd };
 }
 const sortedEntries = () => [...S.entries].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 function forecast() {
@@ -148,19 +150,32 @@ function toast(msg, undoFn) {
 }
 
 // ───────── ячейки ─────────
-const txt = (val, on, ph = '', cls = '') => h('input', { class: 'cell ' + cls, value: val || '', placeholder: ph, onchange: (e) => on(e.target.value) });
+const txt = (val, on, ph = '', cls = '', df, kd) => h('input', { class: 'cell ' + cls, value: val || '', placeholder: ph, 'data-f': df || false, onkeydown: kd || null, onchange: (e) => on(e.target.value) });
 // сумма: показывается с пробелами (1 500 000), при наборе — просто число
-function amt(val, on, ph = '', cls = '') {
-  const el = h('input', { class: 'cell num ' + cls, inputmode: 'decimal', value: hasV(val) && val !== 0 ? nf.format(val) : '', placeholder: ph,
+function amt(val, on, ph = '', cls = '', df, kd) {
+  const el = h('input', { class: 'cell num ' + cls, inputmode: 'decimal', value: hasV(val) && val !== 0 ? nf.format(val) : '', placeholder: ph, 'data-f': df || false, onkeydown: kd || null,
     onfocus: (e) => { e.target.value = hasV(val) && val !== 0 ? String(val) : ''; e.target.select(); },
     onchange: (e) => on(e.target.value === '' ? '' : num(e.target.value)) });
   return el;
 }
-const ccySel = (val, on, cls = '') => h('select', { class: 'cell ccy ' + cls, title: 'Валюта', onchange: (e) => on(e.target.value) }, ...['USD', 'EUR', 'KZT'].map((c) => h('option', { value: c, selected: c === val ? 'selected' : false }, SYM[c])));
-const xBtn = (on) => h('button', { class: 'x', title: 'Удалить строку', onclick: on }, '×');
+const ccySel = (val, on, cls = '', df) => h('select', { class: 'cell ccy ' + cls, title: 'Валюта', 'data-f': df || false, onchange: (e) => on(e.target.value) }, ...['USD', 'EUR', 'KZT'].map((c) => h('option', { value: c, selected: c === val ? 'selected' : false }, SYM[c])));
+const xBtn = (on, df) => h('button', { class: 'x', title: 'Удалить строку', 'data-f': df || false, onclick: on }, '×');
+// как в таблице: Enter — на следующую строку (в последней — новая строка), Tab — соседняя ячейка; курсор не теряется
+let pendingFocus = null;
+const fkey = (e, x, field) => `${e.id}:${x.id}:${field}`;
+function applyFocus() { if (!pendingFocus) return; const el = document.querySelector(`[data-f="${CSS.escape(pendingFocus)}"]`); pendingFocus = null; if (el) el.focus(); }
+function enterKey(e, kind, x, field) {
+  return (ev) => {
+    if (ev.key !== 'Enter') return; ev.preventDefault();
+    const arr = e[kind], i = arr.indexOf(x);
+    if (i < arr.length - 1) { pendingFocus = fkey(e, arr[i + 1], field); ev.target.blur(); setTimeout(applyFocus, 0); }
+    else { const nl = line('', 0, kind === 'incomes' ? 'USD' : 'KZT'); arr.push(nl); pendingFocus = fkey(e, nl, 'name'); ev.target.blur(); save(); }
+  };
+}
 
 // ───────── страница ─────────
 function render() {
+  const af = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.f : null;
   paintRate();
   $('#subtitle').textContent = 'Записываем раз в месяц, как в таблице';
   const list = sortedEntries();
@@ -176,6 +191,8 @@ function render() {
   const cur = list.find((e) => e.id === open) || list[0];
   if (cur) v.append(entryCard(cur));
   v.append(galleryCard(), settingsCard());
+  if (pendingFocus) applyFocus();
+  else if (af) { const el = document.querySelector(`[data-f="${CSS.escape(af)}"]`); if (el) el.focus(); }
 }
 
 // ───────── цель ─────────
@@ -230,41 +247,20 @@ function entryCard(e) {
   // Сейчас есть — можно несколько строк и в разных валютах
   const hv = h('div', { class: 'block' }, h('div', { class: 'lbl big' }, 'Сейчас есть'));
   e.haves.forEach((x) => hv.append(h('div', { class: 'row have' },
-    txt(x.name, (v) => { x.name = v; save(); }, e.haves.length > 1 ? 'где (карта, наличные…)' : 'где (можно не писать)', 'c-name'),
-    amt(x.amount, (v) => { x.amount = num(v); e.auto = false; save(); }, 'сумма', 'c-amt'),
-    ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy'),
+    txt(x.name, (v) => { x.name = v; save(); }, e.haves.length > 1 ? 'где (карта, наличные…)' : 'где (можно не писать)', 'c-name', fkey(e, x, 'name'), enterKey(e, 'haves', x, 'name')),
+    amt(x.amount, (v) => { x.amount = num(v); e.auto = false; save(); }, 'сумма', 'c-amt', fkey(e, x, 'amount'), enterKey(e, 'haves', x, 'amount')),
+    ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy', fkey(e, x, 'ccy')),
     xBtn(() => { if (e.haves.length === 1) { x.amount = 0; save(); return; } const i = e.haves.indexOf(x); e.haves.splice(i, 1); toast('Строка удалена', () => e.haves.splice(i, 0, x)); save(); }))));
   hv.append(h('div', { class: 'row have foot' }, h('button', { class: 'link', onclick: () => { e.haves.push(line('', 0, 'KZT')); save(); } }, '＋ ещё'), h('b', {}, usd(c.have)), h('span'), h('span')));
   if (e.haves.length === 1) hv.append(h('div', { class: 'hint' }, 'Можно добавить вторую строку: другая карта, наличные или другая валюта.'));
   if (e.auto) hv.append(h('div', { class: 'hint' }, 'Сумму подставили из прошлой записи («будет после всего»). Поправьте, если на самом деле другая.'));
   card.append(hv);
 
-  // Доход
-  const inc = h('div', { class: 'block' }, h('div', { class: 'lbl' }, 'Доход'));
-  e.incomes.forEach((x) => inc.append(h('div', { class: 'row inc' },
-    txt(x.name, (v) => { x.name = v; save(); }, 'откуда (можно не писать)', 'c-name'),
-    amt(x.amount, (v) => { x.amount = num(v); save(); }, 'сумма', 'c-amt'),
-    ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy'),
-    xBtn(() => { const i = e.incomes.indexOf(x); e.incomes.splice(i, 1); toast('Доход удалён', () => e.incomes.splice(i, 0, x)); save(); }))));
-  inc.append(h('div', { class: 'row inc foot' }, h('button', { class: 'link', onclick: () => { e.incomes.push(line('', 0, 'USD')); save(); } }, e.incomes.length ? '＋ ещё' : '＋ добавить доход'), h('b', { class: 'pos' }, usd(c.inc)), h('span'), h('span')));
-  card.append(inc);
-
-  // Расход
-  const exp = h('div', { class: 'block' }, h('div', { class: 'lbl' }, 'Расход'),
-    h('div', { class: 'row exp head' }, h('span', { class: 'c-name' }), h('span', { class: 'c-amt' }, 'сколько'), h('span', { class: 'c-ccy' }), h('span', { class: 'c-fact' }, 'по факту'), h('span', { class: 'c-x' })));
-  e.expenses.forEach((x) => exp.append(h('div', { class: 'row exp' },
-    txt(x.name, (v) => { x.name = v; save(); }, 'на что', 'c-name'),
-    amt(x.amount, (v) => { x.amount = num(v); save(); }, 'сколько', 'c-amt'),
-    ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy'),
-    amt(x.fact, (v) => { x.fact = v === '' ? null : num(v); save(); }, 'по факту', 'c-fact fact'),
-    xBtn(() => { const i = e.expenses.indexOf(x); e.expenses.splice(i, 1); toast('Расход удалён', () => e.expenses.splice(i, 0, x)); save(); }))));
-  exp.append(h('div', { class: 'row exp foot' }, h('button', { class: 'link c-name', onclick: () => { e.expenses.push(line('', 0, 'KZT')); save(); } }, e.expenses.length ? '＋ ещё' : '＋ добавить расход'), h('b', { class: 'neg c-amt' }, kzt(c.expPlanKzt)), h('span', { class: 'c-ccy' }), h('b', { class: 'neg c-fact' }, c.anyFact ? kzt(c.expKzt) : ''), h('span', { class: 'c-x' })));
-  exp.append(h('div', { class: 'hint right' }, `${c.anyFact ? 'по факту ' : ''}${kzt(c.expKzt)} ≈ ${usd(c.expUsd)}`));
-  card.append(exp);
+  card.append(rowsBlock(e, c, 'incomes'), rowsBlock(e, c, 'expenses'));
 
   // Итог
   card.append(h('div', { class: 'line total' }, h('span', { class: 'lbl' }, 'Будет после всего'), h('b', {}, usd(c.after))),
-    h('div', { class: 'hint right' }, `${usd(c.have)} + ${usd(c.inc)} − ${usd(c.expUsd)}`),
+    h('div', { class: 'hint right' }, `${usd(c.have)} + ${usd(c.inc)} − ${usd(c.expUsd)} · где есть факт — считаем по факту, иначе по плану`),
     h('div', { class: 'ratel' }, 'Курс в этой записи: $1 = ', h('input', { class: 'cell mini', type: 'number', step: '0.01', value: e.rate || '', placeholder: String(s.rate), onchange: (ev) => { e.rate = num(ev.target.value) || s.rate; save(); } }), ' ₸ · €1 = ', h('input', { class: 'cell mini', type: 'number', step: '0.01', value: e.rateEur || '', placeholder: String(s.rateEur || ''), onchange: (ev) => { e.rateEur = num(ev.target.value) || s.rateEur; save(); } }), ' ₸'),
     h('textarea', { class: 'note', rows: 2, placeholder: 'Заметка (необязательно)', onchange: (ev) => { e.note = ev.target.value; scheduleSave(); } }, e.note || ''),
     h('div', { class: 'danger-row' }, h('button', { class: 'link danger', onclick: () => {
@@ -272,6 +268,29 @@ function entryCard(e) {
       const i = S.entries.indexOf(e); S.entries.splice(i, 1); open = null; toast('Запись удалена', () => { S.entries.splice(i, 0, e); open = e.id; }); save();
     } }, 'Удалить эту запись')));
   return card;
+}
+
+// доход / расход: что ждём (план) и что получилось (факт)
+function rowsBlock(e, c, kind) {
+  const isInc = kind === 'incomes', arr = e[kind], defCcy = isInc ? 'USD' : 'KZT';
+  const L = isInc ? { title: 'Доход — что должно прийти', plan: 'ожидаем', fact: 'пришло', ph: 'откуда (можно не писать)', add: '＋ добавить доход', del: 'Доход удалён' }
+                  : { title: 'Расход — что планируем', plan: 'план', fact: 'по факту', ph: 'на что', add: '＋ добавить расход', del: 'Расход удалён' };
+  const blk = h('div', { class: 'block' }, h('div', { class: 'lbl' }, L.title),
+    h('div', { class: 'row pf head' }, h('span', { class: 'c-name' }), h('span', { class: 'c-amt' }, L.plan), h('span', { class: 'c-ccy' }), h('span', { class: 'c-fact' }, L.fact), h('span', { class: 'c-x' })));
+  arr.forEach((x) => blk.append(h('div', { class: 'row pf' + (hasV(x.fact) ? ' done' : '') },
+    txt(x.name, (v) => { x.name = v; save(); }, L.ph, 'c-name', fkey(e, x, 'name'), enterKey(e, kind, x, 'name')),
+    amt(x.amount, (v) => { x.amount = num(v); save(); }, L.plan, 'c-amt', fkey(e, x, 'amount'), enterKey(e, kind, x, 'amount')),
+    ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy', fkey(e, x, 'ccy')),
+    amt(x.fact, (v) => { x.fact = v === '' ? null : num(v); save(); }, L.fact, 'c-fact fact', fkey(e, x, 'fact'), enterKey(e, kind, x, 'fact')),
+    xBtn(() => { const i = arr.indexOf(x); arr.splice(i, 1); toast(L.del, () => arr.splice(i, 0, x)); save(); }, fkey(e, x, 'x')))));
+  const planT = isInc ? c.incPlan : c.expPlan, factT = isInc ? c.inc : c.expUsd, anyF = isInc ? c.anyIncFact : c.anyFact;
+  const fmt = isInc ? usd : (v) => kzt(v * c.rate), cls = isInc ? 'pos' : 'neg';
+  blk.append(h('div', { class: 'row pf foot' },
+    h('button', { class: 'link c-name', onclick: () => { const nl = line('', 0, defCcy); arr.push(nl); pendingFocus = fkey(e, nl, 'name'); save(); } }, arr.length ? '＋ ещё' : L.add),
+    h('b', { class: cls + ' c-amt' }, fmt(planT)), h('span', { class: 'c-ccy' }), h('b', { class: cls + ' c-fact' }, anyF ? fmt(factT) : ''), h('span', { class: 'c-x' })));
+  if (!isInc) blk.append(h('div', { class: 'hint right' }, `${anyF ? 'по факту ' : 'по плану '}${kzt(c.expKzt)} ≈ ${usd(c.expUsd)}`));
+  else blk.append(h('div', { class: 'hint right' }, anyF ? `в итог идёт ${usd(c.inc)}: где записано «пришло» — берём его, иначе «ожидаем»` : 'когда деньги придут — впишите «пришло», даже если сумма та же'));
+  return blk;
 }
 
 // ───────── фото нашего дома ─────────

@@ -146,7 +146,8 @@ table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
 
 /* строки с валютой */
 .row.have,.row.inc{grid-template-columns:1fr 140px 64px 26px}
-.row.exp{grid-template-columns:1fr 120px 64px 120px 26px}
+.row.pf{grid-template-columns:1fr 120px 64px 120px 26px}
+.row.pf.done .c-name,.row.pf.done .c-amt{opacity:.75}
 .row.head{display:grid}
 .cell.ccy{width:100%;padding:9px 6px;text-align:center;font-weight:700;appearance:none;-webkit-appearance:none;cursor:pointer}
 .cell.fact{background:#fff;border-color:var(--line)}
@@ -162,12 +163,14 @@ table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
 @media(max-width:560px){
   .cell{font-size:15px;padding:8px 8px}
   .row.have,.row.inc{grid-template-columns:1fr 100px 52px 22px}
-  .row.exp{grid-template-columns:96px 52px 1fr 22px;grid-template-areas:"name name name x" "amt ccy fact fact"}
-  .row.exp.head{display:none}
-  .row.exp .c-name{grid-area:name}.row.exp .c-amt{grid-area:amt}.row.exp .c-ccy{grid-area:ccy}.row.exp .c-fact{grid-area:fact}.row.exp .x,.row.exp .c-x{grid-area:x}
-  .row.exp.foot{grid-template-columns:auto 1fr 1fr;grid-template-areas:"name amt fact";gap:6px}
-  .row.exp.foot .c-ccy,.row.exp.foot .c-x{display:none}
-  .row.exp.foot .c-name{text-align:left}
-  .row.exp.foot b{font-size:15px;white-space:nowrap}
-  .row.exp .cell.fact{max-width:150px}
+  .row.pf{grid-template-columns:96px 52px 1fr 22px;grid-template-areas:"name name name x" "amt ccy fact fact"}
+  .row.pf .c-name{grid-area:name}.row.pf .c-amt{grid-area:amt}.row.pf .c-ccy{grid-area:ccy}.row.pf .c-fact{grid-area:fact}.row.pf .x,.row.pf .c-x{grid-area:x}
+  .row.pf.head{grid-template-areas:"amt ccy fact x";margin-bottom:0}
+  .row.pf.head .c-name{display:none}
+  .row.pf.head span{text-align:left;padding-left:6px}
+  .row.pf.foot{grid-template-columns:auto 1fr 1fr;grid-template-areas:"name amt fact";gap:6px}
+  .row.pf.foot .c-ccy,.row.pf.foot .c-x{display:none}
+  .row.pf.foot .c-name{text-align:left}
+  .row.pf.foot b{font-size:15px;white-space:nowrap}
+  .row.pf .cell.fact{max-width:150px}
 }
