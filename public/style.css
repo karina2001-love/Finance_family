@@ -165,7 +165,9 @@ table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
   .row.exp{grid-template-columns:96px 52px 1fr 22px;grid-template-areas:"name name name x" "amt ccy fact fact"}
   .row.exp.head{display:none}
   .row.exp .c-name{grid-area:name}.row.exp .c-amt{grid-area:amt}.row.exp .c-ccy{grid-area:ccy}.row.exp .c-fact{grid-area:fact}.row.exp .x,.row.exp .c-x{grid-area:x}
-  .row.exp.foot{grid-template-areas:"name name name x" "amt ccy fact fact"}
+  .row.exp.foot{grid-template-columns:auto 1fr 1fr;grid-template-areas:"name amt fact";gap:6px}
+  .row.exp.foot .c-ccy,.row.exp.foot .c-x{display:none}
   .row.exp.foot .c-name{text-align:left}
+  .row.exp.foot b{font-size:15px;white-space:nowrap}
   .row.exp .cell.fact{max-width:150px}
 }

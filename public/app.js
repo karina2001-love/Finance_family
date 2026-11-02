@@ -234,7 +234,8 @@ function entryCard(e) {
     amt(x.amount, (v) => { x.amount = num(v); e.auto = false; save(); }, 'сумма', 'c-amt'),
     ccySel(x.ccy, (v) => { x.ccy = v; save(); }, 'c-ccy'),
     xBtn(() => { if (e.haves.length === 1) { x.amount = 0; save(); return; } const i = e.haves.indexOf(x); e.haves.splice(i, 1); toast('Строка удалена', () => e.haves.splice(i, 0, x)); save(); }))));
-  hv.append(h('div', { class: 'row have foot' }, h('button', { class: 'link', onclick: () => { e.haves.push(line('', 0, 'KZT')); save(); } }, '＋ ещё (другая карта или валюта)'), h('b', {}, usd(c.have)), h('span'), h('span')));
+  hv.append(h('div', { class: 'row have foot' }, h('button', { class: 'link', onclick: () => { e.haves.push(line('', 0, 'KZT')); save(); } }, '＋ ещё'), h('b', {}, usd(c.have)), h('span'), h('span')));
+  if (e.haves.length === 1) hv.append(h('div', { class: 'hint' }, 'Можно добавить вторую строку: другая карта, наличные или другая валюта.'));
   if (e.auto) hv.append(h('div', { class: 'hint' }, 'Сумму подставили из прошлой записи («будет после всего»). Поправьте, если на самом деле другая.'));
   card.append(hv);
 
