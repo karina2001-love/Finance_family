@@ -1,10 +1,9 @@
 :root{
+  color-scheme:light;
   --bg:#f7f4ee; --card:#fff; --ink:#1d2b26; --muted:#7a847f; --line:#e8e3d8; --soft:#f6f3ec;
   --green:#2f9e7a; --green2:#6fcf97; --gold:#e8a93b; --red:#d9664f; --blue:#4a8fe0;
   --shadow:0 10px 30px -14px rgba(40,60,50,.22);
 }
-@media(prefers-color-scheme:dark){
-  :root{--bg:#12161a; --card:#1b2127; --ink:#eef2ef; --muted:#8c9893; --line:#2a323a; --soft:#20272e; --green:#4cc9a0; --green2:#8be0b0; --gold:#f0b95a; --red:#ef8a76; --shadow:none}
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -16,7 +15,6 @@ button{cursor:pointer}
 .bg i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.28}
 .bg i:nth-child(1){width:480px;height:480px;background:var(--green2);top:-140px;left:-120px}
 .bg i:nth-child(2){width:420px;height:420px;background:var(--gold);bottom:-160px;right:-100px}
-@media(prefers-color-scheme:dark){.bg i{opacity:.12}}
 
 /* login */
 .login{min-height:100vh;display:grid;place-items:center;padding:20px}
@@ -80,16 +78,17 @@ main{max-width:1000px;margin:0 auto;padding:26px 18px 70px}
 .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -6px}
 table.t{width:100%;border-collapse:collapse;font-size:14.5px;min-width:640px;table-layout:fixed}
 table.t.auto{table-layout:auto;min-width:440px}
-table.t.money{min-width:470px}
+table.t.money{min-width:540px}
 table.t.narrow{min-width:0}
+table.t th,table.t td{box-sizing:border-box}
 table.t th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 table.t td{padding:4px 5px;overflow:hidden;border-bottom:1px solid var(--line);vertical-align:middle}
 table.t tr:last-child td{border-bottom:0}
 table.t .num,table.t th.num{text-align:right;white-space:nowrap}
-table.t .c{text-align:center;width:44px}
-table.t .w-date{width:132px}
-table.t .w-amt{width:118px}
-table.t .w-eq{width:92px}
+table.t .c{text-align:center;width:50px}
+table.t .w-date{width:128px}
+table.t .w-amt{width:110px}
+table.t .w-eq{width:88px}
 table.t .w-x{width:30px}
 table.t .w-ccy{width:70px}
 table.t tr.group td{padding-top:12px;font-weight:700;font-size:13px;color:var(--muted);border-bottom:0}
@@ -147,3 +146,33 @@ details.settings[open] summary::before{transform:rotate(90deg)}
 table.t tr.sel td{font-weight:600}
 .swipe{display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
 @media(max-width:700px){.swipe{display:block}}
+
+/* дом */
+.hero{display:grid;grid-template-columns:210px 1fr;gap:26px;align-items:center;padding:24px 26px}
+@media(max-width:700px){.hero{grid-template-columns:1fr;text-align:center}.hero .bar{margin-left:auto;margin-right:auto}}
+.house{position:relative;width:200px;margin:0 auto}
+.house svg{width:100%;height:auto;display:block}
+.hfill{transform-box:fill-box;transform-origin:bottom;transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.hpct{text-align:center;font-weight:800;font-size:24px;letter-spacing:-.02em;margin-top:8px;color:var(--green)}
+.kicker{font-size:15px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.hbig{font-size:22px;color:var(--muted)}
+.hbig b{display:block;font-size:46px;color:var(--ink);letter-spacing:-.03em;line-height:1.1;margin:2px 0 8px}
+.hline{font-size:15.5px;margin:4px 0}
+.hero .bar{height:12px;max-width:420px;margin:10px 0}
+.hwhen{margin-top:12px;display:inline-block;padding:9px 14px;border-radius:999px;background:linear-gradient(135deg,#2f9e7a1f,#e8a93b26);font-weight:700;font-size:15px}
+.hero .hint{margin-top:10px;display:block}
+.sect{font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.card h2{font-size:20px}
+.help ol.steps{margin:0;padding-left:22px;display:grid;gap:8px;font-size:15.5px;line-height:1.5}
+.help{background:linear-gradient(135deg,#fffdf7,#f3faf6)}
+
+@media(max-width:700px){
+  table.t{min-width:480px;font-size:14px}
+  table.t.money{min-width:420px}
+  table.t th{padding:6px 4px}
+  #month .eqc{display:none}
+  table.t .c{width:44px}
+  table.t .w-amt{width:90px}
+  table.t .w-date{width:118px}
+  .cell{padding:7px 5px}
+}

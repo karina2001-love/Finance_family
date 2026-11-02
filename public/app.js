@@ -93,7 +93,7 @@ function migrate(d) {
   }
   return S6;
 }
-let S = null, model = null, dirty = false, lastSaved = 0, mKey = null, showMonths = 0;
+let S = null, model = null, dirty = false, lastSaved = 0, mKey = null, showMonths = 0, animOn = true;
 
 // ───────── расчёт ─────────
 const virtualRows = () => [
@@ -185,29 +185,47 @@ const xBtn = (on) => h('button', { class: 'x', title: 'Удалить', onclick:
 
 // ───────── страница ─────────
 function render(anim) {
-  model = calc(); paintRate();
+  animOn = anim; model = calc(); paintRate();
   if (!mKey) mKey = model.rows[model.cur].key;
-  $('#subtitle').textContent = `Копим на дом ${usd(model.goal)} · данные вносим 1-го числа`;
+  $('#subtitle').textContent = 'Записываем деньги раз в месяц, 1-го числа';
   const v = $('#view'); v.className = anim ? '' : 'static'; v.innerHTML = '';
-  v.append(summary(), moneyTable(), monthTable(), allMonths(), settings());
+  [summary(), help(), moneyTable(), monthTable(), allMonths(), settings()].filter(Boolean).forEach((el) => v.append(el));
 }
 
 function summary() {
-  const { rows, goal, eta, cur } = model, now = accountsUsd(), pct = Math.max(0, Math.min(1, now / goal));
-  const nx = rows[Math.min(cur + 1, rows.length - 1)], perMonth = nx.inc - nx.expUsd;
-  const noExp = !S.settings.recurring.length;
-  const bar = h('div', { class: 'bar' }, h('i', { style: `width:${pct * 100}%` }));
-  return h('div', { class: 'sum' },
-    h('div', { class: 'card' }, h('small', {}, 'Денег сейчас'), h('span', { class: 'big' }, usd(now)), h('span', { class: 'hint' }, `карты ${usd(accUsd(S.settings.accounts.filter((a) => a.kind === 'bank')))} · наличные ${usd(accUsd(S.settings.accounts.filter((a) => a.kind === 'cash')))} · ≈ ${kzt(now * S.settings.rate)}`)),
-    h('div', { class: 'card' }, h('small', {}, 'Цель — дом'), h('span', { class: 'mid' }, `${Math.round(pct * 100)}% из ${usd(goal)}`), bar, h('span', { class: 'hint' }, `осталось ${usd(Math.max(0, goal - now))}`)),
-    h('div', { class: 'card' }, h('small', {}, 'Дом примерно'), h('span', { class: 'mid' }, eta >= 0 ? `в ${monthIn(rows[eta].key)}` : '—'),
-      h('span', { class: 'hint' }, noExp ? ['Чтобы срок был честным, впишите обычные расходы в ', h('button', { class: 'link', onclick: () => { const d = $('#settings'); d.open = true; d.scrollIntoView({ behavior: 'smooth' }); } }, 'настройках'), '.'] : `откладываете ≈ ${usd(perMonth)} в месяц`)));
+  const { rows, goal, eta, cur } = model, s = S.settings, now = accountsUsd(), pct = Math.max(0, Math.min(1, now / goal));
+  const nx = rows[Math.min(cur + 1, rows.length - 1)], perMonth = nx.inc - nx.expUsd, noExp = !s.recurring.length;
+  const P = 'M60 6 L114 54 L102 54 L102 106 L18 106 L18 54 L6 54 Z';
+  const house = h('div', { class: 'house', html: `<svg viewBox="0 0 120 112"><defs><clipPath id="hc"><path d="${P}"/></clipPath><linearGradient id="hg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2f9e7a"/><stop offset="1" stop-color="#9fe0bd"/></linearGradient></defs><path d="${P}" fill="#f1ede3"/><rect class="hfill" x="0" y="0" width="120" height="112" fill="url(#hg)" clip-path="url(#hc)" style="transform:scaleY(${animOn ? 0 : pct})"/><rect x="80" y="18" width="12" height="24" rx="2" fill="#d9664f"/><path d="${P}" fill="none" stroke="#1d2b26" stroke-width="4" stroke-linejoin="round"/><rect x="50" y="74" width="20" height="32" rx="3" fill="#fff" stroke="#1d2b26" stroke-width="3"/><rect x="26" y="62" width="16" height="16" rx="2" fill="#fff" stroke="#1d2b26" stroke-width="3"/><rect x="78" y="62" width="16" height="16" rx="2" fill="#fff" stroke="#1d2b26" stroke-width="3"/></svg><div class="hpct">${Math.round(pct * 100)}%</div>` });
+  if (animOn) setTimeout(() => { const f = house.querySelector('.hfill'); if (f) f.style.transform = `scaleY(${pct})`; }, 60);
+  const nowEl = h('b', {}, usd(now)); if (animOn) setTimeout(() => countUp(nowEl, now, usd), 0);
+  return h('div', { class: 'card hero' }, house, h('div', {},
+    h('div', { class: 'kicker' }, '🏠 Копим на дом'),
+    h('div', { class: 'hbig' }, 'У нас уже есть ', nowEl),
+    h('div', { class: 'hline' }, `Для дома нужно ${usd(goal)} — мы прошли ${Math.round(pct * 100)}% пути`),
+    h('div', { class: 'bar' }, h('i', { style: `width:${pct * 100}%` })),
+    h('div', { class: 'hline' }, `Осталось накопить ${usd(Math.max(0, goal - now))}`),
+    h('div', { class: 'hwhen' }, eta >= 0 ? `Если так пойдёт дальше — дом будет в ${monthIn(rows[eta].key)}` : 'Пока не копится: уходит больше, чем приходит'),
+    h('div', { class: 'hint' }, noExp ? ['Чтобы срок был честным, впишите, сколько обычно уходит в месяц — в ', h('button', { class: 'link', onclick: () => { const d = $('#settings'); d.open = true; d.scrollIntoView({ behavior: 'smooth' }); } }, 'настройках'), '.'] : `каждый месяц остаётся примерно ${usd(perMonth)}`)));
+}
+function countUp(el, to, fmt, dur = 1200) {
+  const t0 = performance.now();
+  const step = (t) => { const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 4); el.textContent = fmt(to * e); if (p < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function help() {
+  if (S.settings.hideHelp) return null;
+  return h('div', { class: 'card help' }, h('div', { class: 'chead' }, h('h2', {}, 'Как это работает'), h('button', { class: 'link', onclick: () => { S.settings.hideHelp = true; save(); } }, 'Понятно, спрятать')),
+    h('ol', { class: 'steps' },
+      h('li', {}, h('b', {}, 'Раз в месяц, 1-го числа,'), ' пишем, сколько денег на картах и в кошельке.'),
+      h('li', {}, h('b', {}, 'Отмечаем галочкой,'), ' что пришло и что оплатили. Сумма другая — просто исправляем число.'),
+      h('li', {}, h('b', {}, 'Сайт сам считает,'), ' сколько накопили на дом и когда он будет.')));
 }
 
 // деньги сейчас: карты отдельно, наличные отдельно
 function moneyTable() {
   const s = S.settings;
-  const card = h('div', { class: 'card' }, h('div', { class: 'chead' }, h('h2', {}, 'Деньги сейчас'), h('span', { class: 'hint' }, 'впишите остатки 1-го числа · карты и наличные считаются отдельно')));
+  const card = h('div', { class: 'card' }, h('div', { class: 'chead' }, h('h2', {}, '1. Сколько денег сейчас'), h('span', { class: 'hint' }, 'загляните в банк и в кошелёк, впишите суммы · карты и наличные — отдельно')));
   const t = h('table', { class: 't money' }, h('tr', {}, th('Где'), th('Валюта', 'w-ccy'), th('Сумма', 'num w-amt'), th('≈ $', 'num w-eq'), th('', 'w-x')));
   const group = (kind, title, addLabel) => {
     const list = s.accounts.filter((a) => a.kind === kind);
@@ -222,7 +240,7 @@ function moneyTable() {
   };
   group('bank', '💳 Карты и счета', 'карта или счёт');
   group('cash', '💵 Наличные', 'наличные');
-  t.append(h('tr', { class: 'total' }, td('', 'Всего'), td(), td(), td('num', usd(accountsUsd())), td()));
+  t.append(h('tr', { class: 'total' }, td('', 'Всего денег'), td(), td(), td('num', usd(accountsUsd())), td()));
   card.append(h('div', { class: 'tw' }, t), h('div', { class: 'swipe' }, '← таблицу можно листать вбок →'));
   return card;
 }
@@ -233,12 +251,12 @@ function monthTable() {
   const { rows, cur, goal } = model;
   const r = rows.find((x) => x.key === mKey) || rows[cur]; mKey = r.key;
   const key = r.key, idx = r.i, s = S.settings;
-  const status = key === todayKey() ? h('span', { class: 'pill now' }, 'текущий месяц') : idx < cur ? h('span', { class: 'pill ' + (r.hasFact ? 'ok' : '') }, r.hasFact ? '✓ закрыт' : 'прошёл — внесите факт') : h('span', { class: 'pill' }, 'план');
-  const card = h('div', { class: 'card', id: 'month' },
+  const status = key === todayKey() ? h('span', { class: 'pill now' }, 'сейчас') : idx < cur ? h('span', { class: 'pill ' + (r.hasFact ? 'ok' : '') }, r.hasFact ? '✓ посчитан' : 'уже прошёл') : h('span', { class: 'pill' }, 'будет');
+  const card = h('div', { class: 'card', id: 'month' }, h('div', { class: 'sect' }, '2. Что было в месяце: пришло и ушло'),
     h('div', { class: 'chead' },
       h('div', { class: 'r' }, h('div', { class: 'mnav' }, h('button', { onclick: () => { if (idx > 0) { mKey = rows[idx - 1].key; render(false); } } }, '‹'), h('button', { onclick: () => { if (idx < rows.length - 1) { mKey = rows[idx + 1].key; render(false); } } }, '›')), h('h2', {}, monthTitle(key)), status),
-      h('div', { class: 'r' }, h('button', { class: 'btn small in', onclick: () => { materialize(key).rows.push({ id: uid(), kind: 'in', name: '', amount: 0, plan: 0, done: false, date: '' }); save(); } }, '＋ Доход'), h('button', { class: 'btn small out', onclick: () => { materialize(key).rows.push({ id: uid(), kind: 'out', name: '', amount: 0, plan: 0, done: false, date: '' }); save(); } }, '＋ Расход'))));
-  const t = h('table', { class: 't' }, h('tr', {}, th('Было', 'c'), th('Дата', 'w-date'), th('Что'), th('Доход, $', 'num w-amt'), th('Расход, ₸', 'num w-amt'), th('≈ $', 'num w-eq'), th('', 'w-x')));
+      h('div', { class: 'r' }, h('button', { class: 'btn small in', onclick: () => { materialize(key).rows.push({ id: uid(), kind: 'in', name: '', amount: 0, plan: 0, done: false, date: '' }); save(); } }, '＋ Пришли деньги'), h('button', { class: 'btn small out', onclick: () => { materialize(key).rows.push({ id: uid(), kind: 'out', name: '', amount: 0, plan: 0, done: false, date: '' }); save(); } }, '＋ Потратили'))));
+  const t = h('table', { class: 't' }, h('tr', {}, th('Было', 'c'), th('Что это'), th('Пришло, $', 'num w-amt'), th('Ушло, ₸', 'num w-amt'), th('≈ $', 'num w-eq eqc'), th('Когда', 'w-date'), th('', 'w-x')));
   const list = [...r.rs.filter((x) => x.kind === 'in'), ...r.rs.filter((x) => x.kind === 'out')];
   const real = () => materialize(key).rows;
   const find = (x) => real().find((y) => y.id === x.id) || (real().find((y) => y.name === x.name && y.kind === x.kind && y.amount === x.amount));
@@ -246,38 +264,38 @@ function monthTable() {
     const upd = (f) => { const y = find(x); if (y) f(y); save(); };
     const isIn = x.kind === 'in';
     const amt = numCell(x.amount, (v) => upd((y) => { y.amount = num(v); }), isIn ? 'in' : 'out');
-    const amtCell = td('num', amt, x.done && x.plan && Math.abs(x.plan - x.amount) >= 1 ? h('span', { class: 'planhint' }, `план ${isIn ? usd(x.plan) : kzt(x.plan)}`) : null);
+    const amtCell = td('num', amt, x.done && x.plan && Math.abs(x.plan - x.amount) >= 1 ? h('span', { class: 'planhint' }, `хотели ${isIn ? usd(x.plan) : kzt(x.plan)}`) : null);
     t.append(h('tr', { class: x.done ? 'done' : 'plan' },
       td('c', h('input', { class: 'chk', type: 'checkbox', title: isIn ? 'Деньги пришли' : 'Оплачено', checked: x.done ? 'checked' : false, onchange: (e) => upd((y) => { y.done = e.target.checked; if (y.done && !y.date && key === todayKey()) y.date = todayISO(); }) })),
-      td('', dateCell(x.date, (v) => upd((y) => { y.date = v; }))),
       td('', cell(x.name, (v) => upd((y) => { y.name = v; }), '', isIn ? 'Откуда' : 'На что')),
       isIn ? amtCell : td('num'), isIn ? td('num') : amtCell,
-      td('num approx', isIn ? '' : usd(num(x.amount) / r.rate)),
+      td('num approx eqc', isIn ? '' : usd(num(x.amount) / r.rate)),
+      td('', dateCell(x.date, (v) => upd((y) => { y.date = v; }))),
       td('c', xBtn(() => { const a = real(); const y = find(x); if (y) a.splice(a.indexOf(y), 1); save(); }))));
   });
   if (list.length) {
-    t.append(h('tr', { class: 'subtotal' }, td('', { colspan: 3 }, 'из них уже было'), td('num pos', usd(r.incDone)), td('num neg', kzt(r.expDone)), td('num', usd(r.expDone / r.rate)), td()));
-    t.append(h('tr', { class: 'total' }, td('', { colspan: 3 }, 'Итого'), td('num pos', usd(r.inc)), td('num neg', kzt(r.expKzt)), td('num', usd(r.expUsd)), td()));
+    t.append(h('tr', { class: 'subtotal' }, td('', { colspan: 2 }, 'уже случилось'), td('num pos', usd(r.incDone)), td('num neg', kzt(r.expDone)), td('num eqc', usd(r.expDone / r.rate)), td('', { colspan: 2 })));
+    t.append(h('tr', { class: 'total' }, td('', { colspan: 2 }, 'Итого'), td('num pos', usd(r.inc)), td('num neg', kzt(r.expKzt)), td('num eqc', usd(r.expUsd)), td('', { colspan: 2 })));
   }
-  if (r.virtual) t.append(h('tr', {}, td('', { colspan: 7 }, h('span', { class: 'hint' }, list.length ? 'Заполнено по шаблону «обычный месяц» из настроек. Измените любую ячейку — месяц станет своим.' : 'Пока пусто. Добавьте доход или расход кнопками сверху, или заполните шаблон «обычный месяц» в настройках.'))));
+  if (r.virtual) t.append(h('tr', {}, td('', { colspan: 7 }, h('span', { class: 'hint' }, list.length ? 'Это обычный месяц: цифры взяты из настроек. Поправьте любую — и месяц станет своим.' : 'Пока пусто. Нажмите «Пришли деньги» или «Потратили», или заполните обычный месяц в настройках.'))));
   card.append(h('div', { class: 'tw' }, t), h('div', { class: 'swipe' }, '← таблицу можно листать вбок →'));
   const m = S.months[key] || {};
   const foot = h('div', { class: 'foot' },
-    h('div', {}, h('div', { class: 'kv' }, h('span', {}, 'Остаток на начало'), h('b', {}, usd(r.start))),
-      h('div', { class: 'kv' }, h('span', {}, 'Доходы − расходы'), h('b', { class: r.inc - r.expUsd >= 0 ? 'pos' : 'neg' }, (r.inc - r.expUsd >= 0 ? '+' : '') + usd(r.inc - r.expUsd))),
-      h('div', { class: 'kv' }, h('span', {}, 'Остаток на конец (расчёт)'), h('b', { class: 'big' }, usd(r.planned))),
-      h('div', { class: 'kv' }, h('span', {}, 'Это от цели'), h('b', {}, Math.round((r.end / goal) * 100) + '%'))),
+    h('div', {}, h('div', { class: 'kv' }, h('span', {}, 'Было в начале месяца'), h('b', {}, usd(r.start))),
+      h('div', { class: 'kv' }, h('span', {}, 'Пришло минус ушло'), h('b', { class: r.inc - r.expUsd >= 0 ? 'pos' : 'neg' }, (r.inc - r.expUsd >= 0 ? '+' : '') + usd(r.inc - r.expUsd))),
+      h('div', { class: 'kv' }, h('span', {}, 'Будет в конце месяца'), h('b', { class: 'big' }, usd(r.planned))),
+      h('div', { class: 'kv' }, h('span', {}, 'Это от дома'), h('b', {}, Math.round((r.end / goal) * 100) + '%'))),
     h('div', {},
-      h('div', { class: 'kv' }, h('span', {}, 'Факт на конец месяца, $'), h('input', { type: 'number', inputmode: 'decimal', value: r.hasFact ? m.actual : '', placeholder: 'впишите 1-го', onchange: (e) => { const mm = (S.months[key] = S.months[key] || {}); if (e.target.value === '') delete mm.actual; else mm.actual = num(e.target.value); save(); } })),
-      h('div', { class: 'hint', style: 'text-align:right' }, h('button', { class: 'link', onclick: () => { const mm = (S.months[key] = S.months[key] || {}); mm.actual = Math.round(accountsUsd()); save(); toast('Взято из «Деньги сейчас»'); } }, `взять из «Деньги сейчас»: ${usd(accountsUsd())}`), r.hasFact ? ` · по расчёту было бы ${usd(r.planned)}` : ''),
+      h('div', { class: 'kv' }, h('span', {}, 'Сколько осталось на самом деле, $'), h('input', { type: 'number', inputmode: 'decimal', value: r.hasFact ? m.actual : '', placeholder: 'впишите 1-го числа', onchange: (e) => { const mm = (S.months[key] = S.months[key] || {}); if (e.target.value === '') delete mm.actual; else mm.actual = num(e.target.value); save(); } })),
+      h('div', { class: 'hint', style: 'text-align:right' }, h('button', { class: 'link', onclick: () => { const mm = (S.months[key] = S.months[key] || {}); mm.actual = Math.round(accountsUsd()); save(); toast('Взято из «Сколько денег сейчас»'); } }, `взять из «Сколько денег сейчас»: ${usd(accountsUsd())}`), r.hasFact ? ` · по нашим цифрам было бы ${usd(r.planned)}` : ''),
       h('div', { class: 'kv', style: 'margin-top:8px' }, h('span', {}, 'Курс месяца, ₸ за $'), h('input', { type: 'number', step: '0.01', value: m.rate || '', placeholder: String(s.rate), onchange: (e) => { const mm = (S.months[key] = S.months[key] || {}); if (e.target.value === '') delete mm.rate; else mm.rate = num(e.target.value); save(); } })),
-      h('textarea', { class: 'note', rows: 2, placeholder: 'Заметка: что было главным в этом месяце', onchange: (e) => { (S.months[key] = S.months[key] || {}).note = e.target.value; scheduleSave(); } }, m.note || '')));
+      h('textarea', { class: 'note', rows: 2, placeholder: 'Заметка: что было важного в этом месяце', onchange: (e) => { (S.months[key] = S.months[key] || {}).note = e.target.value; scheduleSave(); } }, m.note || '')));
   card.append(foot);
   const prev = idx > 0 ? rows[idx - 1] : null;
   card.append(h('div', { class: 'tools' },
-    prev && !prev.virtual ? h('button', { class: 'btn small', onclick: () => { const mm = (S.months[key] = S.months[key] || {}); mm.rows = prev.rs.map((x) => ({ ...x, id: uid(), done: false, date: '', amount: x.plan || x.amount })); save(); toast('Скопировано из прошлого месяца'); } }, '⧉ Как в прошлом месяце') : null,
-    !r.virtual ? h('button', { class: 'btn small', onclick: () => { if (confirm('Вернуть этому месяцу шаблон «обычный месяц»? Введённые строки удалятся.')) { delete S.months[key].rows; save(); } } }, 'Сбросить к шаблону') : null,
-    h('span', { class: 'hint', style: 'align-self:center' }, 'Галочка «Было» = деньги пришли / оплачено. Сумма отличается от плана — просто исправьте число.')));
+    prev && !prev.virtual ? h('button', { class: 'btn small', onclick: () => { const mm = (S.months[key] = S.months[key] || {}); mm.rows = prev.rs.map((x) => ({ ...x, id: uid(), done: false, date: '', amount: x.plan || x.amount })); save(); toast('Скопировано из прошлого месяца'); } }, '⧉ Скопировать прошлый месяц') : null,
+    !r.virtual ? h('button', { class: 'btn small', onclick: () => { if (confirm('Сделать этот месяц обычным (цифры из настроек)? Введённые строки удалятся.')) { delete S.months[key].rows; save(); } } }, 'Сделать обычным месяцем') : null,
+    h('span', { class: 'hint', style: 'align-self:center' }, 'Галочка «Уже было» — деньги пришли или оплачено. Сумма другая — просто исправьте число.')));
   return card;
 }
 
@@ -285,15 +303,15 @@ function monthTable() {
 function allMonths() {
   const { rows, cur, goal, eta } = model;
   const n = Math.min(rows.length, Math.max(12, eta >= 0 ? eta + 3 : 24) + showMonths);
-  const card = h('div', { class: 'card' }, h('div', { class: 'chead' }, h('h2', {}, 'По месяцам'), h('span', { class: 'hint' }, 'нажмите на строку, чтобы открыть месяц')));
-  const t = h('table', { class: 't auto' }, h('tr', {}, th('Месяц'), th('Доход, $', 'num'), th('Расход, ₸', 'num'), th('≈ $', 'num'), th('На конец, $', 'num'), th('От цели', 'num')));
+  const card = h('div', { class: 'card' }, h('div', { class: 'chead' }, h('h2', {}, '3. Что будет дальше'), h('span', { class: 'hint' }, 'нажмите на строку, чтобы открыть месяц')));
+  const t = h('table', { class: 't auto' }, h('tr', {}, th('Месяц'), th('Пришло, $', 'num'), th('Ушло, ₸', 'num'), th('≈ $', 'num'), th('Будет денег, $', 'num'), th('От дома', 'num')));
   rows.slice(0, n).forEach((r) => {
     const cls = ['click', r.i === cur ? 'cur' : '', r.end >= goal ? 'reached' : '', r.key === mKey ? 'sel' : ''].join(' ');
     t.append(h('tr', { class: cls, onclick: () => { mKey = r.key; render(false); $('#month').scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
-      td('', monthTitle(r.key), r.hasFact ? ' ✓' : r.virtual ? '' : ' ·'), td('num pos', usd(r.inc)), td('num neg', kzt(r.expKzt)), td('num approx', usd(r.expUsd)), td('num', h('b', {}, usd(r.end))), td('num', Math.round((r.end / goal) * 100) + '%')));
+      td('', monthTitle(r.key), r.hasFact ? ' ✓' : r.virtual ? '' : ' ·', r.i === eta ? ' 🏠' : ''), td('num pos', usd(r.inc)), td('num neg', kzt(r.expKzt)), td('num approx', usd(r.expUsd)), td('num', h('b', {}, usd(r.end))), td('num', Math.round((r.end / goal) * 100) + '%')));
   });
   card.append(h('div', { class: 'tw' }, t));
-  card.append(h('div', { class: 'tools' }, n < rows.length ? h('button', { class: 'btn small', onclick: () => { showMonths += 12; render(false); } }, 'Показать ещё 12 месяцев') : null, h('span', { class: 'hint', style: 'align-self:center' }, '✓ — месяц закрыт по факту, · — есть свои записи, без знака — по шаблону')));
+  card.append(h('div', { class: 'tools' }, n < rows.length ? h('button', { class: 'btn small', onclick: () => { showMonths += 12; render(false); } }, 'Показать ещё 12 месяцев') : null, h('span', { class: 'hint', style: 'align-self:center' }, '✓ — месяц посчитан · точка — есть свои записи · 🏠 — здесь уже хватает на дом')));
   return card;
 }
 
@@ -302,10 +320,10 @@ function settings() {
   const s = S.settings;
   const d = h('details', { class: 'settings card', id: 'settings' }, h('summary', {}, 'Настройки: цель, курс, обычный месяц'));
   const g = h('div', { class: 'sgrid' });
-  g.append(h('label', { class: 'field' }, 'Цель — дом, $', h('input', { type: 'number', value: s.goal, onchange: (e) => { s.goal = num(e.target.value) || 1; save(); } })),
-    h('label', { class: 'field' }, `Остаток на старте (${monthTitle(s.startMonth)}), $`, h('input', { type: 'number', value: s.startBalance, onchange: (e) => { s.startBalance = num(e.target.value); save(); } })));
+  g.append(h('label', { class: 'field' }, 'Сколько стоит дом, $', h('input', { type: 'number', value: s.goal, onchange: (e) => { s.goal = num(e.target.value) || 1; save(); } })),
+    h('label', { class: 'field' }, `Сколько было в самом начале (${monthTitle(s.startMonth)}), $`, h('input', { type: 'number', value: s.startBalance, onchange: (e) => { s.startBalance = num(e.target.value); save(); } })));
   const rate = h('div', { class: 'field' }, 'Курс доллара',
-    h('div', { class: 'seg' }, h('button', { class: s.rateMode === 'auto' ? 'on' : '', onclick: () => { s.rateMode = 'auto'; save(); refreshRate(); } }, 'Нацбанк, сам'), h('button', { class: s.rateMode === 'manual' ? 'on' : '', onclick: () => { s.rateMode = 'manual'; save(); } }, 'Вручную')),
+    h('div', { class: 'seg' }, h('button', { class: s.rateMode === 'auto' ? 'on' : '', onclick: () => { s.rateMode = 'auto'; save(); refreshRate(); } }, 'Сам, по Нацбанку'), h('button', { class: s.rateMode === 'manual' ? 'on' : '', onclick: () => { s.rateMode = 'manual'; save(); } }, 'Вручную')),
     s.rateMode === 'manual' ? [h('input', { type: 'number', step: '0.01', value: s.rate, placeholder: '₸ за $', onchange: (e) => { s.rate = num(e.target.value) || s.rate; save(); } }), h('input', { type: 'number', step: '0.01', value: s.rateEur || '', placeholder: '₸ за €', onchange: (e) => { s.rateEur = num(e.target.value); save(); } })]
       : h('input', { type: 'number', step: '0.01', value: s.rateSpread || '', placeholder: 'поправка обменника, ₸ (например −3)', onchange: (e) => { s.rateSpread = num(e.target.value); if (s.rateBase) s.rate = r2(s.rateBase + s.rateSpread); save(); } }));
   g.append(rate);
@@ -317,8 +335,8 @@ function settings() {
     box.append(t);
     return box;
   };
-  g.append(tmpl('Обычные доходы в месяц, $', s.incomeTemplate, 'usd', '$', 'Источник'), tmpl('Обычные расходы в месяц, ₸', s.recurring, 'kzt', '₸', 'Например: еда, аренда…'));
-  d.append(g, h('div', { class: 'hint', style: 'margin-top:12px' }, 'Шаблон «обычный месяц» подставляется во все будущие месяцы, где вы ещё ничего не вносили. Так строится прогноз, когда будет дом.'));
+  g.append(tmpl('Обычно приходит в месяц, $', s.incomeTemplate, 'usd', '$', 'Откуда'), tmpl('Обычно уходит в месяц, ₸', s.recurring, 'kzt', '₸', 'Например: еда, аренда…'));
+  d.append(g, h('div', { class: 'hint', style: 'margin-top:12px' }, 'Эти цифры подставляются во все будущие месяцы, пока вы их не поправите. По ним сайт считает, когда будет дом.'));
   return d;
 }
 
