@@ -123,3 +123,25 @@ details.settings[open] summary::before{transform:rotate(90deg)}
 .lb{position:fixed;inset:0;background:rgba(10,20,15,.92);display:grid;place-items:center;z-index:50;padding:18px;cursor:zoom-out}
 .lb img{max-width:100%;max-height:calc(100vh - 80px);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .lbcap{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-weight:600;font-size:15px;opacity:.9}
+
+/* когда накопим */
+.when{margin-top:14px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,#2f9e7a14,#e8a93b1f)}
+.wt{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:6px}
+.wl{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:4px 0;font-size:15px}
+.wl b{font-size:17px}
+.wb{font-size:19px;font-weight:800;letter-spacing:-.01em;margin-top:8px}
+/* история */
+.ht{font-weight:700;font-size:17px;margin-bottom:2px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.tbl{width:100%;border-collapse:collapse;font-size:15px;min-width:420px}
+table.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}
+table.tbl td{padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+table.tbl tr{cursor:pointer}
+table.tbl tr:hover td{background:#2f9e7a0d}
+table.tbl tr.sel td{background:#e8a93b1a}
+table.tbl tr.last td{font-weight:600}
+table.tbl tr.goalrow{cursor:default}
+table.tbl tr.goalrow td{border-bottom:0;background:var(--soft);font-weight:700}
+@media(max-width:560px){table.tbl{font-size:14px;min-width:400px}}
+table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}

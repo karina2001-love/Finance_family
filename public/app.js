@@ -13,6 +13,8 @@ const hasV = (x) => x !== undefined && x !== null && x !== '';
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fmtDate = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };
 const monthOf = (iso) => { const [y, m] = iso.split('-').map(Number); return `${MN[m - 1]} ${y}`; };
+const MP = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
+const addMonths = (iso, n) => { const [y, m] = iso.split('-').map(Number); const t = (y * 12 + (m - 1)) + n; return { y: Math.floor(t / 12), m: t % 12 }; };
 
 function h(tag, attrs = {}, ...kids) {
   const el = document.createElement(tag);
@@ -57,6 +59,18 @@ function calcEntry(e) {
   return { rate, inc, expPlan, expKzt, anyFact, expUsd, after };
 }
 const sortedEntries = () => [...S.entries].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+function forecast() {
+  const list = sortedEntries(); if (!list.length) return null;
+  const latest = list[0], c = calcEntry(latest), goal = num(S.settings.goal) || 1;
+  const nets = list.map((e) => calcEntry(e).after - num(e.have));
+  const avg = nets.reduce((a, b) => a + b, 0) / nets.length;
+  const left = Math.max(0, goal - num(latest.have));
+  if (num(latest.have) >= goal) return { done: true, avg, left: 0, n: nets.length };
+  if (avg <= 0) return { avg, left, n: nets.length };
+  const months = Math.max(1, Math.ceil((goal - c.after) / avg) + 1);
+  const when = addMonths(latest.date, months);
+  return { avg, left, n: nets.length, months, when: `${MP[when.m]} ${when.y}` };
+}
 
 // ───────── сохранение ─────────
 let saveTimer = null;
@@ -138,14 +152,15 @@ function render() {
   const list = sortedEntries();
   if (open == null && list.length) open = list[0].id;
   const v = $('#view'); v.innerHTML = '';
-  v.append(goalCard(list[0]), galleryCard());
+  v.append(goalCard(list[0]), historyCard(list));
   v.append(h('div', { class: 'addrow' }, h('button', { class: 'btn primary', onclick: () => {
     const prev = list[0], after = prev ? Math.round(calcEntry(prev).after) : 0;
     const e = { id: uid(), date: todayISO(), have: after, incomes: [], expenses: [], note: '' };
     S.entries.push(e); open = e.id; save();
   } }, '＋ Новая запись')));
-  list.forEach((e) => v.append(e.id === open ? entryCard(e, list) : entrySummary(e)));
-  v.append(settingsCard());
+  const cur = list.find((e) => e.id === open) || list[0];
+  if (cur) v.append(entryCard(cur, list));
+  v.append(galleryCard(), settingsCard());
 }
 
 function goalCard(latest) {
@@ -158,7 +173,34 @@ function goalCard(latest) {
       h('div', { class: 'gl' }, h('span', {}, 'Сейчас есть'), h('b', {}, usd(have))),
       h('div', { class: 'gl' }, h('span', {}, 'Осталось'), h('b', {}, usd(Math.max(0, goal - have))))),
     h('div', { class: 'bar' }, h('i', { style: `width:${pct * 100}%` })),
-    h('div', { class: 'hint' }, `${Math.round(pct * 100)}% пути к дому${latest ? ' · по записи от ' + fmtDate(latest.date) : ''}`)));
+    h('div', { class: 'hint' }, `${Math.round(pct * 100)}% пути к дому${latest ? ' · по записи от ' + fmtDate(latest.date) : ''}`),
+    whenCard()));
+}
+function whenCard() {
+  const f = forecast(); if (!f) return null;
+  const box = h('div', { class: 'when' }, h('div', { class: 'wt' }, 'Когда накопим'));
+  if (f.done) { box.append(h('div', { class: 'wb' }, '🎉 Уже накопили!')); return box; }
+  box.append(h('div', { class: 'wl' }, h('span', {}, 'Осталось'), h('b', {}, usd(f.left))));
+  box.append(h('div', { class: 'wl' }, h('span', {}, `В среднем за месяц (по ${f.n} ${f.n === 1 ? 'записи' : f.n < 5 ? 'записям' : 'записям'})`), h('b', { class: f.avg > 0 ? 'pos' : 'neg' }, (f.avg > 0 ? '+' : '') + usd(f.avg))));
+  if (f.when) box.append(h('div', { class: 'wb' }, `🏠 Накопим примерно в ${f.when}`), h('div', { class: 'hint' }, `это через ${f.months} мес., если дальше будет как в среднем · чем больше записей, тем точнее`));
+  else box.append(h('div', { class: 'wb neg' }, 'Пока не копится: уходит больше, чем приходит'), h('div', { class: 'hint' }, 'как только месяцы станут в плюсе — здесь появится дата'));
+  return box;
+}
+
+// история по числам
+function historyCard(list) {
+  const asc = [...list].reverse(), goal = num(S.settings.goal) || 1;
+  const card = h('div', { class: 'card hist' }, h('div', { class: 'ht' }, 'Как было по числам'), h('div', { class: 'hint', style: 'margin-bottom:8px' }, 'каждая строка — одна запись · нажмите, чтобы открыть'));
+  const t = h('table', { class: 'tbl' }, h('tr', {}, h('th', {}, 'Дата'), h('th', { class: 'num' }, 'Было'), h('th', { class: 'num' }, 'Пришло'), h('th', { class: 'num' }, 'Ушло'), h('th', { class: 'num' }, 'Стало')));
+  asc.forEach((e, i) => {
+    const c = calcEntry(e), last = i === asc.length - 1;
+    t.append(h('tr', { class: (e.id === open ? 'sel ' : '') + (last ? 'last' : ''), onclick: () => { open = e.id; render(); const el = $('.entry'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+      h('td', {}, h('b', {}, fmtDate(e.date)), h('span', { class: 'hint' }, ' ' + monthOf(e.date).split(' ')[0].toLowerCase())),
+      h('td', { class: 'num' }, usd(e.have)), h('td', { class: 'num pos' }, '+' + usd(c.inc)), h('td', { class: 'num neg' }, '−' + usd(c.expUsd), h('span', { class: 'sub2' }, kzt(c.expKzt))), h('td', { class: 'num' }, h('b', {}, usd(c.after)))));
+  });
+  t.append(h('tr', { class: 'goalrow' }, h('td', {}, '🏠 Цель'), h('td'), h('td'), h('td'), h('td', { class: 'num' }, h('b', {}, usd(goal)))));
+  card.append(h('div', { class: 'tw' }, t));
+  return card;
 }
 
 function entrySummary(e) {
@@ -173,7 +215,7 @@ function entryCard(e, list) {
   const card = h('div', { class: 'card entry' });
   card.append(h('div', { class: 'ehead' },
     h('div', { class: 'edate' }, h('input', { class: 'cell date', type: 'date', value: e.date, onchange: (ev) => { e.date = ev.target.value || e.date; save(); } }), h('span', { class: 'hint' }, monthOf(e.date))),
-    h('div', { class: 'r' }, list.length > 1 ? h('button', { class: 'link', onclick: () => { open = null; render(); } }, 'Свернуть') : null, h('button', { class: 'link danger', onclick: () => { if (confirm('Удалить запись от ' + fmtDate(e.date) + '?')) { S.entries = S.entries.filter((x) => x.id !== e.id); open = null; save(); } } }, 'Удалить'))));
+    h('div', { class: 'r' }, h('button', { class: 'link danger', onclick: () => { if (confirm('Удалить запись от ' + fmtDate(e.date) + '?')) { S.entries = S.entries.filter((x) => x.id !== e.id); open = null; save(); } } }, 'Удалить'))));
 
   // Сейчас есть
   card.append(h('div', { class: 'line big' }, h('span', { class: 'lbl' }, 'Сейчас есть'), h('span', { class: 'val' }, numc(e.have, (v) => { e.have = num(v); save(); }), h('u', {}, '$'))));
