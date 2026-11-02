@@ -82,13 +82,10 @@ main{max-width:680px;margin:0 auto;padding:24px 16px 70px}
 .block{padding:10px 0 6px;border-top:1px solid var(--line)}
 .block .lbl{font-weight:700;font-size:16px;margin-bottom:8px}
 .row{display:grid;gap:8px;align-items:center;margin-bottom:8px}
-.row.inc{grid-template-columns:1fr 130px 26px}
-.row.exp{grid-template-columns:1fr 120px 120px 26px}
 .row.head{margin-bottom:2px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .row.head span{padding:0 4px;text-align:right}
 .row.foot{border-top:1px dashed var(--line);padding-top:8px;margin-top:2px}
 .row.foot b{text-align:right;font-size:17px;padding-right:4px}
-@media(max-width:560px){.row.inc{grid-template-columns:1fr 110px 22px}.row.exp{grid-template-columns:1fr 96px 96px 22px}.cell{font-size:15px;padding:8px 8px}}
 .x{border:0;background:none;color:var(--muted);font-size:20px;border-radius:8px;padding:0;line-height:1}
 .x:hover{color:var(--red)}
 .note{width:100%;margin-top:12px;padding:9px 11px;border-radius:12px;border:1px solid var(--line);background:var(--soft);outline:none;resize:vertical;font-size:14px}
@@ -146,3 +143,29 @@ table.tbl tr.goalrow td{border-bottom:0;background:var(--soft);font-weight:700}
 table.tbl .dshort{display:none}
 @media(max-width:560px){.card.hist{padding:16px 12px}table.tbl{font-size:13px;min-width:0}table.tbl td{padding:8px 3px}table.tbl th{padding:6px 3px;font-size:10px;letter-spacing:.03em}table.tbl td .hint,table.tbl td .sub2,table.tbl .dfull{display:none}table.tbl .dshort{display:inline}}
 table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
+
+/* строки с валютой */
+.row.have,.row.inc{grid-template-columns:1fr 140px 64px 26px}
+.row.exp{grid-template-columns:1fr 120px 64px 120px 26px}
+.row.head{display:grid}
+.cell.ccy{width:100%;padding:9px 6px;text-align:center;font-weight:700;appearance:none;-webkit-appearance:none;cursor:pointer}
+.cell.fact{background:#fff;border-color:var(--line)}
+.lbl.big{font-size:18px}
+.row.foot b{font-size:17px}
+.ratel{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:13px;color:var(--muted);margin-top:10px}
+.cell.mini{width:88px;padding:5px 8px;font-size:13px;text-align:right}
+.danger-row{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);text-align:right}
+.toast{display:flex;gap:14px;align-items:center}
+.toast .undo{border:0;background:#fff2;color:#fff;border-radius:9px;padding:6px 12px;font-weight:700;pointer-events:auto;cursor:pointer}
+.toast.on{pointer-events:auto}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){
+  .cell{font-size:15px;padding:8px 8px}
+  .row.have,.row.inc{grid-template-columns:1fr 100px 52px 22px}
+  .row.exp{grid-template-columns:96px 52px 1fr 22px;grid-template-areas:"name name name x" "amt ccy fact fact"}
+  .row.exp.head{display:none}
+  .row.exp .c-name{grid-area:name}.row.exp .c-amt{grid-area:amt}.row.exp .c-ccy{grid-area:ccy}.row.exp .c-fact{grid-area:fact}.row.exp .x,.row.exp .c-x{grid-area:x}
+  .row.exp.foot{grid-template-areas:"name name name x" "amt ccy fact fact"}
+  .row.exp.foot .c-name{text-align:left}
+  .row.exp .cell.fact{max-width:150px}
+}
