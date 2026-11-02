@@ -174,3 +174,11 @@ table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
   .row.pf.foot b{font-size:15px;white-space:nowrap}
   .row.pf .cell.fact{max-width:150px}
 }
+
+/* что будет дальше */
+.assume{font-size:15px;line-height:2;margin:4px 0 10px}
+.cell.mini2{display:inline-block;width:104px;padding:4px 8px;font-size:15px;font-weight:700;text-align:right;vertical-align:baseline}
+table.tbl.plain tr{cursor:default}
+table.tbl.plain tr:hover td{background:transparent}
+table.tbl tr.now td{background:#e8a93b14}
+table.tbl tr.goal td{background:#2f9e7a1a;font-weight:700}

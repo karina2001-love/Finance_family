@@ -77,17 +77,23 @@ function calcEntry(e) {
   return { rate, have, inc, incPlan, anyIncFact, expPlan, expUsd, expKzt: expUsd * rate, expPlanKzt: expPlan * rate, anyFact, after: have + inc - expUsd };
 }
 const sortedEntries = () => [...S.entries].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+// «как обычно»: среднее по записям (или цифры, которые вписали в таблице внизу)
+function assumption() {
+  const list = sortedEntries(); if (!list.length) return null;
+  const cs = list.map(calcEntry), s = S.settings;
+  const avgInc = cs.reduce((a, c) => a + c.inc, 0) / cs.length, avgExp = cs.reduce((a, c) => a + c.expUsd, 0) / cs.length;
+  const inc = hasV(s.planInc) ? num(s.planInc) : avgInc, exp = hasV(s.planExp) ? num(s.planExp) : avgExp;
+  return { inc, exp, net: inc - exp, custom: hasV(s.planInc) || hasV(s.planExp), avgInc, avgExp, n: cs.length };
+}
 function forecast() {
   const list = sortedEntries(); if (!list.length) return null;
-  const latest = list[0], c = calcEntry(latest), goal = num(S.settings.goal) || 1;
-  const nets = list.map((e) => { const k = calcEntry(e); return k.after - k.have; });
-  const avg = nets.reduce((a, b) => a + b, 0) / nets.length;
+  const latest = list[0], c = calcEntry(latest), goal = num(S.settings.goal) || 1, a = assumption();
   const left = Math.max(0, goal - c.have);
-  if (c.have >= goal) return { done: true, avg, left: 0, n: nets.length };
-  if (avg <= 0) return { avg, left, n: nets.length };
-  const months = Math.max(1, Math.ceil((goal - c.after) / avg) + 1);
+  if (c.have >= goal) return { done: true, avg: a.net, left: 0, n: a.n, custom: a.custom };
+  if (a.net <= 0) return { avg: a.net, left, n: a.n, custom: a.custom };
+  const months = Math.max(0, Math.ceil((goal - c.after) / a.net));
   const when = addMonths(latest.date, months);
-  return { avg, left, n: nets.length, months, when: `${MP[when.m]} ${when.y}` };
+  return { avg: a.net, left, n: a.n, custom: a.custom, months, when: `${MP[when.m]} ${when.y}` };
 }
 
 // ───────── сохранение ─────────
@@ -190,7 +196,7 @@ function render() {
   } }, '＋ Новая запись')));
   const cur = list.find((e) => e.id === open) || list[0];
   if (cur) v.append(entryCard(cur));
-  v.append(galleryCard(), settingsCard());
+  v.append(galleryCard(), futureCard(), settingsCard());
   if (pendingFocus) applyFocus();
   else if (af) { const el = document.querySelector(`[data-f="${CSS.escape(af)}"]`); if (el) el.focus(); }
 }
@@ -214,8 +220,8 @@ function whenCard() {
   const box = h('div', { class: 'when' }, h('div', { class: 'wt' }, 'Когда накопим'));
   if (f.done) { box.append(h('div', { class: 'wb' }, '🎉 Уже накопили!')); return box; }
   box.append(h('div', { class: 'wl' }, h('span', {}, 'Осталось'), h('b', {}, usd(f.left))));
-  box.append(h('div', { class: 'wl' }, h('span', {}, `В среднем за месяц (по ${f.n} ${f.n === 1 ? 'записи' : 'записям'})`), h('b', { class: f.avg > 0 ? 'pos' : 'neg' }, (f.avg > 0 ? '+' : '') + usd(f.avg))));
-  if (f.when) box.append(h('div', { class: 'wb' }, `🏠 Накопим примерно в ${f.when}`), h('div', { class: 'hint' }, `это через ${f.months} мес., если дальше будет как в среднем · чем больше записей, тем точнее`));
+  box.append(h('div', { class: 'wl' }, h('span', {}, f.custom ? 'Остаётся в месяц (по вашим цифрам внизу)' : `В среднем остаётся в месяц (по ${f.n} ${f.n === 1 ? 'записи' : 'записям'})`), h('b', { class: f.avg > 0 ? 'pos' : 'neg' }, (f.avg > 0 ? '+' : '') + usd(f.avg))));
+  if (f.when) box.append(h('div', { class: 'wb' }, `🏠 Накопим примерно в ${f.when}`), h('div', { class: 'hint' }, (f.months === 0 ? 'уже в этом месяце' : `это через ${f.months} мес.`) + ' · подробно по месяцам — в таблице внизу страницы'));
   else box.append(h('div', { class: 'wb neg' }, 'Пока не копится: уходит больше, чем приходит'), h('div', { class: 'hint' }, 'как только месяцы станут в плюсе — здесь появится дата'));
   return box;
 }
@@ -307,6 +313,31 @@ function galleryCard() {
   return h('div', { class: 'card gallery' },
     h('div', { class: 'gal' }, ...PHOTOS.map((p) => h('img', { src: p.thumb, alt: p.cap, title: p.cap, loading: 'lazy', onclick: () => lightbox(p) }))),
     h('div', { class: 'hint' }, 'Таким мы видим наш дом · нажмите на фото, чтобы рассмотреть'));
+}
+
+// ───────── что будет дальше, по месяцам ─────────
+function futureCard() {
+  const list = sortedEntries(); if (!list.length) return null;
+  const latest = list[0], c = calcEntry(latest), a = assumption(), goal = num(S.settings.goal) || 1, s = S.settings;
+  const card = h('div', { class: 'card future' }, h('div', { class: 'ht' }, 'Что будет дальше, если всё пойдёт как обычно'));
+  card.append(h('div', { class: 'assume' }, 'Если каждый месяц будет приходить ',
+    amt(Math.round(a.inc), (v) => { s.planInc = v === '' ? null : num(v); save(); }, '', 'mini2'), ' $ и уходить ',
+    amt(Math.round(a.exp), (v) => { s.planExp = v === '' ? null : num(v); save(); }, '', 'mini2'), ' $, то:',
+    a.custom ? h('button', { class: 'link', style: 'margin-left:8px', onclick: () => { s.planInc = null; s.planExp = null; save(); } }, 'вернуть среднее по записям') : h('span', { class: 'hint' }, ` (это среднее по ${a.n} ${a.n === 1 ? 'записи' : 'записям'} — можно поправить)`)));
+  const t = h('table', { class: 'tbl plain' }, h('tr', {}, h('th', {}, 'Месяц'), h('th', { class: 'num' }, 'Придёт'), h('th', { class: 'num' }, 'Уйдёт'), h('th', { class: 'num' }, 'Будет денег'), h('th', { class: 'num' }, 'От дома')));
+  const row = (label, inc, exp, end, cls) => h('tr', { class: cls || '' }, h('td', {}, label), h('td', { class: 'num pos' }, '+' + usd(inc)), h('td', { class: 'num neg' }, '−' + usd(exp)), h('td', { class: 'num' }, h('b', {}, usd(end))), h('td', { class: 'num' }, Math.round((end / goal) * 100) + '%'));
+  t.append(row(h('span', {}, h('b', {}, monthOf(latest.date)), h('span', { class: 'hint' }, ' по записи')), c.inc, c.expUsd, c.after, 'now' + (c.after >= goal ? ' goal' : '')));
+  if (a.net > 0 && c.after < goal) {
+    let end = c.after;
+    for (let k = 1; k <= 60; k++) {
+      end += a.net; const m = addMonths(latest.date, k), reached = end >= goal;
+      t.append(row((reached ? '🏠 ' : '') + `${MN[m.m]} ${m.y}`, a.inc, a.exp, end, reached ? 'goal' : ''));
+      if (reached) break;
+    }
+  }
+  card.append(h('div', { class: 'tw' }, t));
+  card.append(h('div', { class: 'hint', style: 'margin-top:8px' }, a.net > 0 ? 'Первая строка — по вашей записи, дальше — если каждый месяц будет как обычно. 🏠 — месяц, когда денег хватит на дом.' : 'При таких цифрах деньги не растут: уходит не меньше, чем приходит. Поправьте цифры выше или дождитесь новых записей.'));
+  return card;
 }
 
 // ───────── настройки ─────────
