@@ -195,7 +195,7 @@ function historyCard(list) {
   asc.forEach((e, i) => {
     const c = calcEntry(e), last = i === asc.length - 1;
     t.append(h('tr', { class: (e.id === open ? 'sel ' : '') + (last ? 'last' : ''), onclick: () => { open = e.id; render(); const el = $('.entry'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
-      h('td', {}, h('b', {}, fmtDate(e.date)), h('span', { class: 'hint' }, ' ' + monthOf(e.date).split(' ')[0].toLowerCase())),
+      h('td', {}, h('b', { class: 'dfull' }, fmtDate(e.date)), h('b', { class: 'dshort' }, fmtDate(e.date).slice(0, 5)), h('span', { class: 'hint' }, ' ' + monthOf(e.date).split(' ')[0].toLowerCase())),
       h('td', { class: 'num' }, usd(e.have)), h('td', { class: 'num pos' }, '+' + usd(c.inc)), h('td', { class: 'num neg' }, '−' + usd(c.expUsd), h('span', { class: 'sub2' }, kzt(c.expKzt))), h('td', { class: 'num' }, h('b', {}, usd(c.after)))));
   });
   t.append(h('tr', { class: 'goalrow' }, h('td', {}, '🏠 Цель'), h('td'), h('td'), h('td'), h('td', { class: 'num' }, h('b', {}, usd(goal)))));

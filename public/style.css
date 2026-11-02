@@ -143,5 +143,6 @@ table.tbl tr.sel td{background:#e8a93b1a}
 table.tbl tr.last td{font-weight:600}
 table.tbl tr.goalrow{cursor:default}
 table.tbl tr.goalrow td{border-bottom:0;background:var(--soft);font-weight:700}
-@media(max-width:560px){table.tbl{font-size:14px;min-width:400px}}
+table.tbl .dshort{display:none}
+@media(max-width:560px){.card.hist{padding:16px 12px}table.tbl{font-size:13px;min-width:0}table.tbl td{padding:8px 3px}table.tbl th{padding:6px 3px;font-size:10px;letter-spacing:.03em}table.tbl td .hint,table.tbl td .sub2,table.tbl .dfull{display:none}table.tbl .dshort{display:inline}}
 table.tbl .sub2{display:block;font-size:11px;color:var(--muted);font-weight:400}
