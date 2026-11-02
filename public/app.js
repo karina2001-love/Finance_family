@@ -39,7 +39,7 @@ function seed() {
     v: 6,
     settings: {
       goal: 200000, startBalance: 26496, startMonth: '2026-10',
-      rateMode: 'auto', rate: 450.79, rateBase: 0, rateSource: '', rateUpdated: 0, rateSpread: 0,
+      rateMode: 'auto', rate: 450.79, rateBase: 0, rateEur: 0, rateSource: '', rateUpdated: 0, rateSpread: 0,
       incomeTemplate: [{ id: uid(), name: 'Зарплата №1', usd: 7150 }, { id: uid(), name: 'Зарплата №2', usd: 5600 }],
       recurring: [],
       accounts: [
@@ -68,10 +68,10 @@ function migrate(d) {
   if (!d) return seed();
   if (d.v === 6) return d;
   const S6 = seed(), s = d.settings || {};
-  for (const k of ['goal', 'startBalance', 'startMonth', 'rateMode', 'rate', 'rateBase', 'rateSource', 'rateUpdated', 'rateSpread']) if (s[k] !== undefined) S6.settings[k] = s[k];
+  for (const k of ['goal', 'startBalance', 'startMonth', 'rateMode', 'rate', 'rateBase', 'rateEur', 'rateSource', 'rateUpdated', 'rateSpread']) if (s[k] !== undefined) S6.settings[k] = s[k];
   if (Array.isArray(s.incomeTemplate) && s.incomeTemplate.length) S6.settings.incomeTemplate = s.incomeTemplate.map((x) => ({ id: x.id || uid(), name: x.name || '', usd: num(x.usd) }));
   if (Array.isArray(s.recurring)) S6.settings.recurring = s.recurring.map((x) => ({ id: x.id || uid(), name: x.name || '', kzt: num(x.kzt) }));
-  if (Array.isArray(s.accounts) && s.accounts.length) S6.settings.accounts = s.accounts.map((a) => ({ id: a.id || uid(), name: a.name || '', ccy: a.ccy === 'KZT' ? 'KZT' : 'USD', amount: num(a.amount), kind: a.kind === 'cash' ? 'cash' : 'bank' }));
+  if (Array.isArray(s.accounts) && s.accounts.length) S6.settings.accounts = s.accounts.map((a) => ({ id: a.id || uid(), name: a.name || '', ccy: ['KZT', 'EUR'].includes(a.ccy) ? a.ccy : 'USD', amount: num(a.amount), kind: a.kind === 'cash' ? 'cash' : 'bank' }));
   if (d.v === 5 && d.months) {
     S6.months = {};
     const hf = (x) => hasV(x.fact);
@@ -117,7 +117,9 @@ function calc() {
   const goal = num(s.goal) || 1;
   return { rows, goal, cur, eta: rows.findIndex((r) => r.end >= goal) };
 }
-const accUsd = (list) => sum(list, (a) => (a.ccy === 'USD' ? a.amount : num(a.amount) / (num(S.settings.rate) || 1)));
+const eurRate = () => num(S.settings.rateEur) || num(S.settings.rate) * 1.1; // ₸ за €
+const toUsd = (amount, ccy) => (ccy === 'USD' ? num(amount) : ccy === 'EUR' ? (num(amount) * eurRate()) / (num(S.settings.rate) || 1) : num(amount) / (num(S.settings.rate) || 1));
+const accUsd = (list) => sum(list, (a) => toUsd(a.amount, a.ccy));
 const accountsUsd = () => accUsd(S.settings.accounts);
 
 // ───────── сохранение ─────────
@@ -161,14 +163,14 @@ async function refreshRate(manual) {
     const r = await fetch('/api/rate'); if (r.status === 401) return showLogin();
     const j = await r.json(); if (!r.ok) throw new Error();
     const s = S.settings; s.rateBase = j.rate; s.rateSource = j.source; s.rateUpdated = j.updatedAt;
-    if (s.rateMode === 'auto') s.rate = r2(j.rate + num(s.rateSpread));
+    if (s.rateMode === 'auto') { s.rate = r2(j.rate + num(s.rateSpread)); if (j.eur) s.rateEur = r2(j.eur); }
     scheduleSave(); if (manual) toast(`${j.source}: ${j.rate} ₸ за $`);
   } catch { if (manual) toast('Не удалось получить курс'); }
   chip.classList.remove('spin'); render(false);
 }
 function paintRate() {
   const s = S.settings, when = s.rateUpdated ? new Date(s.rateUpdated).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-  $('#rateChip').innerHTML = `$1 = <b>${s.rate} ₸</b><small>${s.rateMode === 'auto' && s.rateSource ? s.rateSource + ' · ' + when : 'вручную'}</small>`;
+  $('#rateChip').innerHTML = `$1 = <b>${s.rate} ₸</b> · €1 = <b>${r2(eurRate())} ₸</b><small>${s.rateMode === 'auto' && s.rateSource ? s.rateSource + ' · ' + when : 'вручную'}</small>`;
 }
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 2400); }
 
@@ -212,9 +214,9 @@ function moneyTable() {
     t.append(h('tr', { class: 'group' }, td('', title), td(), td(), td(), td()));
     list.forEach((a) => t.append(h('tr', {},
       td('', cell(a.name, (v) => { a.name = v; scheduleSave(); }, '', 'Название')),
-      td('', sel(a.ccy, [['USD', '$'], ['KZT', '₸']], (v) => { a.ccy = v; save(); })),
+      td('', sel(a.ccy, [['USD', '$'], ['EUR', '€'], ['KZT', '₸']], (v) => { a.ccy = v; save(); })),
       td('num', numCell(a.amount, (v) => { a.amount = num(v); save(); })),
-      td('num approx', usd(a.ccy === 'USD' ? a.amount : num(a.amount) / s.rate)),
+      td('num approx', usd(toUsd(a.amount, a.ccy))),
       td('c', xBtn(() => { s.accounts.splice(s.accounts.indexOf(a), 1); save(); })))));
     t.append(h('tr', { class: 'subtotal' }, td('', h('button', { class: 'link', onclick: () => { s.accounts.push({ id: uid(), name: '', ccy: kind === 'cash' ? 'KZT' : 'USD', amount: 0, kind }); save(); } }, '＋ ' + addLabel)), td(), td(), td('num', usd(accUsd(list))), td()));
   };
@@ -304,7 +306,7 @@ function settings() {
     h('label', { class: 'field' }, `Остаток на старте (${monthTitle(s.startMonth)}), $`, h('input', { type: 'number', value: s.startBalance, onchange: (e) => { s.startBalance = num(e.target.value); save(); } })));
   const rate = h('div', { class: 'field' }, 'Курс доллара',
     h('div', { class: 'seg' }, h('button', { class: s.rateMode === 'auto' ? 'on' : '', onclick: () => { s.rateMode = 'auto'; save(); refreshRate(); } }, 'Нацбанк, сам'), h('button', { class: s.rateMode === 'manual' ? 'on' : '', onclick: () => { s.rateMode = 'manual'; save(); } }, 'Вручную')),
-    s.rateMode === 'manual' ? h('input', { type: 'number', step: '0.01', value: s.rate, onchange: (e) => { s.rate = num(e.target.value) || s.rate; save(); } })
+    s.rateMode === 'manual' ? [h('input', { type: 'number', step: '0.01', value: s.rate, placeholder: '₸ за $', onchange: (e) => { s.rate = num(e.target.value) || s.rate; save(); } }), h('input', { type: 'number', step: '0.01', value: s.rateEur || '', placeholder: '₸ за €', onchange: (e) => { s.rateEur = num(e.target.value); save(); } })]
       : h('input', { type: 'number', step: '0.01', value: s.rateSpread || '', placeholder: 'поправка обменника, ₸ (например −3)', onchange: (e) => { s.rateSpread = num(e.target.value); if (s.rateBase) s.rate = r2(s.rateBase + s.rateSpread); save(); } }));
   g.append(rate);
   const tmpl = (title, arr, field, unit, ph) => {
