@@ -115,6 +115,22 @@ const txt = (val, on, ph = '') => h('input', { class: 'cell', value: val || '', 
 const numc = (val, on, ph = '') => h('input', { class: 'cell num', type: 'number', inputmode: 'decimal', value: hasV(val) ? val : '', placeholder: ph, onchange: (e) => on(e.target.value) });
 const xBtn = (on) => h('button', { class: 'x', title: 'Удалить', onclick: on }, '×');
 
+// ───────── фото нашего дома ─────────
+const PHOTOS = [
+  { n: 1, cap: 'Гостиная' }, { n: 2, cap: 'Прихожая и лестница' }, { n: 3, cap: 'Большие окна в сад' }, { n: 4, cap: 'Сад и бассейн' }, { n: 5, cap: 'Ужины при свечах' },
+].map((p) => ({ ...p, full: `photos/${p.n}.jpg`, thumb: `photos/${p.n}-s.jpg` }));
+function lightbox(p) {
+  const lb = h('div', { class: 'lb', onclick: () => lb.remove() }, h('img', { src: p.full, alt: p.cap }), h('div', { class: 'lbcap' }, p.cap));
+  document.body.append(lb);
+  const esc = (e) => { if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', esc); } };
+  document.addEventListener('keydown', esc);
+}
+function galleryCard() {
+  return h('div', { class: 'card gallery' },
+    h('div', { class: 'gal' }, ...PHOTOS.map((p) => h('img', { src: p.thumb, alt: p.cap, title: p.cap, loading: 'lazy', onclick: () => lightbox(p) }))),
+    h('div', { class: 'hint' }, 'Таким мы видим наш дом · нажмите на фото, чтобы рассмотреть'));
+}
+
 // ───────── страница ─────────
 function render() {
   paintRate();
@@ -122,7 +138,7 @@ function render() {
   const list = sortedEntries();
   if (open == null && list.length) open = list[0].id;
   const v = $('#view'); v.innerHTML = '';
-  v.append(goalCard(list[0]));
+  v.append(goalCard(list[0]), galleryCard());
   v.append(h('div', { class: 'addrow' }, h('button', { class: 'btn primary', onclick: () => {
     const prev = list[0], after = prev ? Math.round(calcEntry(prev).after) : 0;
     const e = { id: uid(), date: todayISO(), have: after, incomes: [], expenses: [], note: '' };
@@ -135,12 +151,14 @@ function render() {
 function goalCard(latest) {
   const s = S.settings, have = latest ? num(latest.have) : 0, goal = num(s.goal) || 1, pct = Math.max(0, Math.min(1, have / goal));
   return h('div', { class: 'card goal' },
+    h('div', { class: 'photo-head' }, h('img', { src: PHOTOS[0].full, alt: 'Наш дом' }), h('div', { class: 'photo-cap' }, 'Наш дом')),
+    h('div', { class: 'goal-body' },
     h('div', { class: 'grow' },
       h('div', { class: 'gl' }, h('span', {}, '🏠 Цель'), h('span', { class: 'ginp' }, numc(s.goal, (v) => { s.goal = num(v) || 1; save(); }), ' $')),
       h('div', { class: 'gl' }, h('span', {}, 'Сейчас есть'), h('b', {}, usd(have))),
       h('div', { class: 'gl' }, h('span', {}, 'Осталось'), h('b', {}, usd(Math.max(0, goal - have))))),
     h('div', { class: 'bar' }, h('i', { style: `width:${pct * 100}%` })),
-    h('div', { class: 'hint' }, `${Math.round(pct * 100)}% пути к дому${latest ? ' · по записи от ' + fmtDate(latest.date) : ''}`));
+    h('div', { class: 'hint' }, `${Math.round(pct * 100)}% пути к дому${latest ? ' · по записи от ' + fmtDate(latest.date) : ''}`)));
 }
 
 function entrySummary(e) {

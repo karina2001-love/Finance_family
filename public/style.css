@@ -106,3 +106,20 @@ details.settings[open] summary::before{transform:rotate(90deg)}
 .field input{padding:9px 11px;border-radius:11px;border:1px solid var(--line);background:var(--soft);outline:none;max-width:260px}
 .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,30px);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:13px;opacity:0;transition:.3s;z-index:40;pointer-events:none;font-size:14px}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* фото дома */
+.card.goal{padding:0;overflow:hidden}
+.goal-body{padding:18px 20px}
+.photo-head{position:relative;height:280px;background:var(--soft)}
+.photo-head img{width:100%;height:100%;object-fit:cover;object-position:center 58%;display:block}
+.photo-head::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.38))}
+.photo-cap{position:absolute;left:20px;bottom:14px;z-index:1;color:#fff;font-weight:800;font-size:28px;letter-spacing:-.02em;text-shadow:0 2px 14px rgba(0,0,0,.45)}
+.card.gallery{padding:12px 14px 10px}
+.gal{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.gal img{flex:0 0 150px;height:200px;object-fit:cover;border-radius:12px;cursor:zoom-in;scroll-snap-align:start;transition:transform .2s}
+.gal img:hover{transform:scale(1.02)}
+.gallery .hint{margin-top:8px}
+@media(max-width:560px){.photo-head{height:210px}.photo-cap{font-size:24px;left:16px}.gal img{flex-basis:118px;height:158px}}
+.lb{position:fixed;inset:0;background:rgba(10,20,15,.92);display:grid;place-items:center;z-index:50;padding:18px;cursor:zoom-out}
+.lb img{max-width:100%;max-height:calc(100vh - 80px);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.lbcap{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-weight:600;font-size:15px;opacity:.9}
