@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="bg"><i></i><i></i><i></i></div>
+<div class="bg"><i></i><i></i></div>
 
 <section id="login" class="login hidden">
   <form id="loginForm" class="login-card" autocomplete="on">
@@ -29,18 +29,13 @@
       <div class="sub" id="subtitle"></div>
     </div>
     <div class="top-actions">
-      <button class="rate-chip" id="rateChip" title="Обновить курс">…</button>
+      <button class="rate-chip" id="rateChip" title="Курс Нацбанка РК, обновляется сам. Нажмите, чтобы обновить сейчас.">…</button>
       <span id="saveState" class="save"></span>
-      <button class="icon-btn" id="btnSettings" title="Настройки">⚙︎</button>
       <button class="icon-btn" id="btnLogout" title="Выйти">⎋</button>
     </div>
   </header>
-  <div id="banner"></div>
-  <div id="dash"></div>
+  <div id="view"></div>
 </main>
-
-<div id="overlay" class="overlay"></div>
-<aside id="drawer" class="drawer" aria-hidden="true"></aside>
 <div id="toast" class="toast"></div>
 <script src="app.js"></script>
 </body>
