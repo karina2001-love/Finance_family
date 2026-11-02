@@ -2,6 +2,7 @@
 // ───────── helpers ─────────
 const $ = (s) => document.querySelector(s);
 const MN = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const MS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const MP = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
 const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 const usd = (n) => (n < 0 ? '−' : '') + '$' + nf.format(Math.abs(Math.round(n)));
@@ -326,12 +327,13 @@ function futureCard() {
     a.custom ? h('button', { class: 'link', style: 'margin-left:8px', onclick: () => { s.planInc = null; s.planExp = null; save(); } }, 'вернуть среднее по записям') : h('span', { class: 'hint' }, ` (это среднее по ${a.n} ${a.n === 1 ? 'записи' : 'записям'} — можно поправить)`)));
   const t = h('table', { class: 'tbl plain' }, h('tr', {}, h('th', {}, 'Месяц'), h('th', { class: 'num' }, 'Придёт'), h('th', { class: 'num' }, 'Уйдёт'), h('th', { class: 'num' }, 'Будет денег'), h('th', { class: 'num' }, 'От дома')));
   const row = (label, inc, exp, end, cls) => h('tr', { class: cls || '' }, h('td', {}, label), h('td', { class: 'num pos' }, '+' + usd(inc)), h('td', { class: 'num neg' }, '−' + usd(exp)), h('td', { class: 'num' }, h('b', {}, usd(end))), h('td', { class: 'num' }, Math.round((end / goal) * 100) + '%'));
-  t.append(row(h('span', {}, h('b', {}, monthOf(latest.date)), h('span', { class: 'hint' }, ' по записи')), c.inc, c.expUsd, c.after, 'now' + (c.after >= goal ? ' goal' : '')));
+  const [ly, lm] = latest.date.split('-').map(Number);
+  t.append(row(h('span', {}, h('b', { class: 'mfull' }, monthOf(latest.date)), h('b', { class: 'mshort' }, `${MS[lm - 1]} ${String(ly).slice(2)}`), h('span', { class: 'hint' }, ' по записи')), c.inc, c.expUsd, c.after, 'now' + (c.after >= goal ? ' goal' : '')));
   if (a.net > 0 && c.after < goal) {
     let end = c.after;
     for (let k = 1; k <= 60; k++) {
       end += a.net; const m = addMonths(latest.date, k), reached = end >= goal;
-      t.append(row((reached ? '🏠 ' : '') + `${MN[m.m]} ${m.y}`, a.inc, a.exp, end, reached ? 'goal' : ''));
+      t.append(row(h('span', {}, reached ? '🏠 ' : '', h('span', { class: 'mfull' }, `${MN[m.m]} ${m.y}`), h('span', { class: 'mshort' }, `${MS[m.m]} ${String(m.y).slice(2)}`)), a.inc, a.exp, end, reached ? 'goal' : ''));
       if (reached) break;
     }
   }

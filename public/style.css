@@ -182,3 +182,13 @@ table.tbl.plain tr{cursor:default}
 table.tbl.plain tr:hover td{background:transparent}
 table.tbl tr.now td{background:#e8a93b14}
 table.tbl tr.goal td{background:#2f9e7a1a;font-weight:700}
+
+table.tbl .mshort{display:none}
+@media(max-width:560px){
+  .card.future{padding:16px 12px}
+  .future table.tbl{font-size:12.5px}
+  .future table.tbl td{padding:7px 2px}
+  .future table.tbl th{padding:6px 2px;font-size:9.5px}
+  table.tbl .mfull,.future td .hint{display:none}
+  table.tbl .mshort{display:inline}
+}
